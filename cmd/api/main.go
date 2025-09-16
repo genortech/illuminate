@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"illuminate/internal/server"
 )
 
@@ -20,7 +20,7 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	// Listen for the interrupt signal.
 	<-ctx.Done()
 
-	log.Println("shutting down gracefully, press Ctrl+C again to force")
+	log.Info("shutting down gracefully, press Ctrl+C again to force")
 	stop() // Allow Ctrl+C to force shutdown
 
 	// The context is used to inform the server it has 5 seconds to finish
@@ -28,16 +28,21 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := apiServer.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown with error: %v", err)
+		log.Errorf("Server forced to shutdown with error: %v", err)
 	}
 
-	log.Println("Server exiting")
+	log.Info("Server exiting")
 
 	// Notify the main goroutine that the shutdown is complete
 	done <- true
 }
 
 func main() {
+	logger := log.NewWithOptions(os.Stderr, log.Options{
+		ReportTimestamp: true,
+		TimeFormat:      time.Kitchen,
+		ReportCaller:    true,
+	})
 
 	server := server.NewServer()
 
@@ -49,10 +54,10 @@ func main() {
 
 	err := server.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
-		panic(fmt.Sprintf("http server error: %s", err))
+		logger.Fatalf("http server error: %s", err)
 	}
 
 	// Wait for the graceful shutdown to complete
 	<-done
-	log.Println("Graceful shutdown complete.")
+	logger.Info("Graceful shutdown complete.")
 }

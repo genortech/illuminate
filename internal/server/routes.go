@@ -1,17 +1,24 @@
 package server
 
 import (
-	"net/http"
-
+	"bytes"
+	"context"
 	"fmt"
-	"log"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"illuminate/cmd/web"
+
 	"github.com/a-h/templ"
+	"github.com/charmbracelet/log"
 	"github.com/coder/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"illuminate/cmd/web"
+	"github.com/yuin/goldmark"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -20,7 +27,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.Use(middleware.Recover())
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"https://*", "http://*"},
+		AllowOrigins:     []string{"https*", "http://*"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		AllowCredentials: true,
@@ -32,6 +39,10 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.GET("/web", echo.WrapHandler(templ.Handler(web.HelloForm())))
 	e.POST("/hello", echo.WrapHandler(http.HandlerFunc(web.HelloWebHandler)))
+
+	// Documentation routes
+	e.GET("/docs", echo.WrapHandler(http.HandlerFunc(web.DocsPageWebHandler)))
+	e.GET("/docs/:page", echo.WrapHandler(http.HandlerFunc(web.DocsPageWebHandler)))
 
 	e.GET("/", s.HelloWorldHandler)
 
@@ -58,9 +69,8 @@ func (s *Server) websocketHandler(c echo.Context) error {
 	w := c.Response().Writer
 	r := c.Request()
 	socket, err := websocket.Accept(w, r, nil)
-
 	if err != nil {
-		log.Printf("could not open websocket: %v", err)
+		log.Errorf("could not open websocket: %v", err)
 		_, _ = w.Write([]byte("could not open websocket"))
 		w.WriteHeader(http.StatusInternalServerError)
 		return nil
@@ -80,4 +90,67 @@ func (s *Server) websocketHandler(c echo.Context) error {
 		time.Sleep(time.Second * 2)
 	}
 	return nil
+}
+
+func (s *Server) docsIndexHandler(c echo.Context) error {
+	files, err := os.ReadDir("cmd/web/docs")
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "Could not read documentation files")
+	}
+
+	var pages []string
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".md") {
+			pages = append(pages, strings.TrimSuffix(file.Name(), ".md"))
+		}
+	}
+
+	// Redirect to the index page
+	return c.Redirect(http.StatusMovedPermanently, "/docs/index")
+}
+
+func (s *Server) docsPageHandler(c echo.Context) error {
+	pageName := c.Param("page")
+	if pageName == "" {
+		pageName = "index"
+	}
+
+	filePath := filepath.Join("cmd/web/docs", pageName+".md")
+
+	mdContent, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return c.String(http.StatusNotFound, "Page not found")
+		}
+		return c.String(http.StatusInternalServerError, "Could not read page")
+	}
+
+	var buf bytes.Buffer
+	if err := goldmark.Convert(mdContent, &buf); err != nil {
+		return c.String(http.StatusInternalServerError, "Could not convert markdown")
+	}
+
+	// Get list of all documentation pages for the sidebar
+	files, err := os.ReadDir("cmd/web/docs")
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "Could not read documentation files")
+	}
+
+	var pages []string
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".md") {
+			pages = append(pages, strings.TrimSuffix(file.Name(), ".md"))
+		}
+	}
+
+	// Render the page using the template
+	component := web.DocsPage(pageName, buf.String(), pages)
+	return component.Render(c.Request().Context(), c.Response().Writer)
+}
+
+func Unsafe(html string) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+		_, err = io.WriteString(w, html)
+		return err
+	})
 }

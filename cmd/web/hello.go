@@ -1,8 +1,9 @@
 package web
 
 import (
-	"log"
 	"net/http"
+
+	"github.com/charmbracelet/log"
 )
 
 func HelloWebHandler(w http.ResponseWriter, r *http.Request) {
