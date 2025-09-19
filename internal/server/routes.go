@@ -41,8 +41,11 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.POST("/hello", echo.WrapHandler(http.HandlerFunc(web.HelloWebHandler)))
 
 	// Documentation routes
-	e.GET("/docs", echo.WrapHandler(http.HandlerFunc(web.DocsPageWebHandler)))
-	e.GET("/docs/:page", echo.WrapHandler(http.HandlerFunc(web.DocsPageWebHandler)))
+	// e.GET("/docs", echo.WrapHandler(http.HandlerFunc(web.DocsPageWebHandler)))
+	// e.GET("/docs/:page", echo.WrapHandler(http.HandlerFunc(web.DocsPageWebHandler)))
+
+	// Converter Pages
+	e.GET("/converter", echo.WrapHandler(templ.Handler(web.ConverterPage())))
 
 	e.GET("/", s.HelloWorldHandler)
 
