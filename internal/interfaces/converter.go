@@ -1,4 +1,4 @@
-package converter
+package interfaces
 
 import (
 	"illuminate/internal/models"
@@ -165,4 +165,19 @@ type FormatCapabilities struct {
 
 	// SupportsElectrical indicates if electrical data is supported
 	SupportsElectrical bool `json:"supports_electrical"`
+}
+
+// ValidationResult contains the result of data validation
+type ValidationResult struct {
+	// IsValid indicates if the data passed validation
+	IsValid bool `json:"is_valid"`
+
+	// Score is a quality score between 0 and 1
+	Score float64 `json:"score"`
+
+	// Warnings contains non-critical issues found during validation
+	Warnings []string `json:"warnings,omitempty"`
+
+	// Errors contains critical issues that prevent successful conversion
+	Errors []string `json:"errors,omitempty"`
 }

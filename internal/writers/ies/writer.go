@@ -2,22 +2,22 @@ package ies
 
 import (
 	"fmt"
-	"illuminate/internal/converter"
+	"illuminate/internal/interfaces"
 	"illuminate/internal/models"
 	"illuminate/internal/parsers/ies"
 	"strconv"
 	"strings"
 )
 
-// Writer implements the converter.Writer interface for IES files
+// Writer implements the interfaces.Writer interface for IES files
 type Writer struct {
-	options converter.WriterOptions
+	options interfaces.WriterOptions
 }
 
 // NewWriter creates a new IES writer instance
 func NewWriter() *Writer {
 	return &Writer{
-		options: converter.WriterOptions{
+		options: interfaces.WriterOptions{
 			Precision:       1,
 			UseCommaDecimal: false,
 			IncludeComments: true,
@@ -68,7 +68,7 @@ func (w *Writer) Write(data *models.PhotometricData) ([]byte, error) {
 }
 
 // SetOptions configures writer-specific options
-func (w *Writer) SetOptions(opts converter.WriterOptions) error {
+func (w *Writer) SetOptions(opts interfaces.WriterOptions) error {
 	// Validate format version
 	if opts.FormatVersion != "" {
 		version := ies.IESVersion(opts.FormatVersion)
@@ -93,8 +93,8 @@ func (w *Writer) SetOptions(opts converter.WriterOptions) error {
 }
 
 // GetDefaultOptions returns the default writer options
-func (w *Writer) GetDefaultOptions() converter.WriterOptions {
-	return converter.WriterOptions{
+func (w *Writer) GetDefaultOptions() interfaces.WriterOptions {
+	return interfaces.WriterOptions{
 		Precision:       1,
 		UseCommaDecimal: false,
 		IncludeComments: true,
@@ -267,5 +267,5 @@ func (w *Writer) formatFloat(value float64) string {
 	return formatted
 }
 
-// Ensure Writer implements the converter.Writer interface
-var _ converter.Writer = (*Writer)(nil)
+// Ensure Writer implements the interfaces.Writer interface
+var _ interfaces.Writer = (*Writer)(nil)

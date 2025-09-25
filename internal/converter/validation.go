@@ -5,34 +5,28 @@ import (
 	"math"
 	"strings"
 
+	"illuminate/internal/interfaces"
 	"illuminate/internal/models"
 )
 
-// ValidationResult contains the result of a validation operation
-type ValidationResult struct {
-	IsValid  bool     `json:"is_valid"`
-	Errors   []string `json:"errors,omitempty"`
-	Warnings []string `json:"warnings,omitempty"`
-}
-
-// AddError adds an error to the validation result
-func (vr *ValidationResult) AddError(err string) {
+// addError adds an error to the validation result
+func addError(vr *interfaces.ValidationResult, err string) {
 	vr.Errors = append(vr.Errors, err)
 	vr.IsValid = false
 }
 
-// AddWarning adds a warning to the validation result
-func (vr *ValidationResult) AddWarning(warning string) {
+// addWarning adds a warning to the validation result
+func addWarning(vr *interfaces.ValidationResult, warning string) {
 	vr.Warnings = append(vr.Warnings, warning)
 }
 
-// HasErrors returns true if there are validation errors
-func (vr *ValidationResult) HasErrors() bool {
+// hasErrors returns true if there are validation errors
+func hasErrors(vr *interfaces.ValidationResult) bool {
 	return len(vr.Errors) > 0
 }
 
-// HasWarnings returns true if there are validation warnings
-func (vr *ValidationResult) HasWarnings() bool {
+// hasWarnings returns true if there are validation warnings
+func hasWarnings(vr *interfaces.ValidationResult) bool {
 	return len(vr.Warnings) > 0
 }
 
@@ -49,12 +43,12 @@ func NewValidator(logger *Logger) *Validator {
 }
 
 // ValidatePhotometricData performs comprehensive validation of photometric data
-func (v *Validator) ValidatePhotometricData(data *models.PhotometricData) *ValidationResult {
-	result := &ValidationResult{IsValid: true}
+func (v *Validator) ValidatePhotometricData(data *models.PhotometricData) *interfaces.ValidationResult {
+	result := &interfaces.ValidationResult{IsValid: true}
 
 	// Basic model validation
 	if err := data.Validate(); err != nil {
-		result.AddError(fmt.Sprintf("Model validation failed: %s", err.Error()))
+		addError(result, fmt.Sprintf("Model validation failed: %s", err.Error()))
 	}
 
 	// Cross-format compatibility checks
@@ -70,48 +64,48 @@ func (v *Validator) ValidatePhotometricData(data *models.PhotometricData) *Valid
 }
 
 // validatePhotometryTypeCompatibility checks if photometry type is compatible across formats
-func (v *Validator) validatePhotometryTypeCompatibility(data *models.PhotometricData, result *ValidationResult) {
+func (v *Validator) validatePhotometryTypeCompatibility(data *models.PhotometricData, result *interfaces.ValidationResult) {
 	switch data.Photometry.PhotometryType {
 	case "A":
 		// Type A: Plane perpendicular to lamp axis
 		if len(data.Photometry.HorizontalAngles) > 1 {
-			result.AddWarning("Type A photometry typically uses single horizontal plane")
+			addWarning(result, "Type A photometry typically uses single horizontal plane")
 		}
 	case "B":
 		// Type B: Plane containing lamp axis
 		if len(data.Photometry.HorizontalAngles) < 2 {
-			result.AddWarning("Type B photometry should have multiple horizontal angles")
+			addWarning(result, "Type B photometry should have multiple horizontal angles")
 		}
 	case "C":
 		// Type C: Plane perpendicular to lamp axis (most common)
 		if len(data.Photometry.HorizontalAngles) < 2 {
-			result.AddWarning("Type C photometry should have multiple horizontal angles")
+			addWarning(result, "Type C photometry should have multiple horizontal angles")
 		}
 	default:
-		result.AddError(fmt.Sprintf("Unknown photometry type: %s", data.Photometry.PhotometryType))
+		addError(result, fmt.Sprintf("Unknown photometry type: %s", data.Photometry.PhotometryType))
 	}
 }
 
 // validateGeometryConsistency checks geometry parameter consistency
-func (v *Validator) validateGeometryConsistency(data *models.PhotometricData, result *ValidationResult) {
+func (v *Validator) validateGeometryConsistency(data *models.PhotometricData, result *interfaces.ValidationResult) {
 	geom := &data.Geometry
 
 	// Check for reasonable dimensions
 	if geom.Length > 10000 || geom.Width > 10000 || geom.Height > 10000 {
-		result.AddWarning("Luminaire dimensions seem unusually large (>10m)")
+		addWarning(result, "Luminaire dimensions seem unusually large (>10m)")
 	}
 
 	if geom.Length < 0.001 && geom.Length > 0 {
-		result.AddWarning("Luminaire length seems unusually small (<1mm)")
+		addWarning(result, "Luminaire length seems unusually small (<1mm)")
 	}
 
 	// Check luminous vs physical dimensions consistency
 	if geom.LuminousLength > 0 && geom.Length > 0 {
 		ratio := geom.LuminousLength / geom.Length
 		if ratio > 1.1 {
-			result.AddError("Luminous length significantly exceeds physical length")
+			addError(result, "Luminous length significantly exceeds physical length")
 		} else if ratio > 1.0 {
-			result.AddWarning("Luminous length slightly exceeds physical length")
+			addWarning(result, "Luminous length slightly exceeds physical length")
 		}
 	}
 
@@ -119,56 +113,56 @@ func (v *Validator) validateGeometryConsistency(data *models.PhotometricData, re
 	if geom.LuminousWidth > 0 && geom.Width > 0 {
 		ratio := geom.LuminousWidth / geom.Width
 		if ratio > 1.1 {
-			result.AddError("Luminous width significantly exceeds physical width")
+			addError(result, "Luminous width significantly exceeds physical width")
 		} else if ratio > 1.0 {
-			result.AddWarning("Luminous width slightly exceeds physical width")
+			addWarning(result, "Luminous width slightly exceeds physical width")
 		}
 	}
 
 	if geom.LuminousHeight > 0 && geom.Height > 0 {
 		ratio := geom.LuminousHeight / geom.Height
 		if ratio > 1.1 {
-			result.AddError("Luminous height significantly exceeds physical height")
+			addError(result, "Luminous height significantly exceeds physical height")
 		} else if ratio > 1.0 {
-			result.AddWarning("Luminous height slightly exceeds physical height")
+			addWarning(result, "Luminous height slightly exceeds physical height")
 		}
 	}
 }
 
 // validateElectricalConsistency checks electrical parameter consistency
-func (v *Validator) validateElectricalConsistency(data *models.PhotometricData, result *ValidationResult) {
+func (v *Validator) validateElectricalConsistency(data *models.PhotometricData, result *interfaces.ValidationResult) {
 	elec := &data.Electrical
 
 	// Check for reasonable electrical values
 	if elec.InputWatts > 10000 {
-		result.AddWarning("Input watts seems unusually high (>10kW)")
+		addWarning(result, "Input watts seems unusually high (>10kW)")
 	}
 
 	if elec.InputVoltage > 1000 {
-		result.AddWarning("Input voltage seems unusually high (>1000V)")
+		addWarning(result, "Input voltage seems unusually high (>1000V)")
 	}
 
 	if elec.InputCurrent > 100 {
-		result.AddWarning("Input current seems unusually high (>100A)")
+		addWarning(result, "Input current seems unusually high (>100A)")
 	}
 
 	// Check power factor reasonableness
 	if elec.PowerFactor > 0 && elec.PowerFactor < 0.5 {
-		result.AddWarning("Power factor is quite low (<0.5)")
+		addWarning(result, "Power factor is quite low (<0.5)")
 	}
 
 	// Check ballast factors
 	if elec.BallastFactor > 0 && (elec.BallastFactor < 0.5 || elec.BallastFactor > 1.5) {
-		result.AddWarning("Ballast factor outside typical range (0.5-1.5)")
+		addWarning(result, "Ballast factor outside typical range (0.5-1.5)")
 	}
 
 	if elec.BallastLampFactor > 0 && (elec.BallastLampFactor < 0.5 || elec.BallastLampFactor > 1.5) {
-		result.AddWarning("Ballast lamp factor outside typical range (0.5-1.5)")
+		addWarning(result, "Ballast lamp factor outside typical range (0.5-1.5)")
 	}
 }
 
 // validatePhotometricConsistency checks photometric data consistency
-func (v *Validator) validatePhotometricConsistency(data *models.PhotometricData, result *ValidationResult) {
+func (v *Validator) validatePhotometricConsistency(data *models.PhotometricData, result *interfaces.ValidationResult) {
 	photo := &data.Photometry
 
 	// Check luminous flux consistency with candela values
@@ -177,7 +171,7 @@ func (v *Validator) validatePhotometricConsistency(data *models.PhotometricData,
 		if calculatedFlux > 0 {
 			ratio := photo.LuminousFlux / calculatedFlux
 			if ratio < 0.8 || ratio > 1.2 {
-				result.AddWarning(fmt.Sprintf("Declared luminous flux (%.0f lm) differs significantly from calculated flux (%.0f lm)",
+				addWarning(result, fmt.Sprintf("Declared luminous flux (%.0f lm) differs significantly from calculated flux (%.0f lm)",
 					photo.LuminousFlux, calculatedFlux))
 			}
 		}
@@ -232,7 +226,7 @@ func (v *Validator) calculateLuminousFluxFromCandela(photo *models.PhotometricMe
 }
 
 // validateSymmetry checks for expected symmetry in candela distribution
-func (v *Validator) validateSymmetry(photo *models.PhotometricMeasurements, result *ValidationResult) {
+func (v *Validator) validateSymmetry(photo *models.PhotometricMeasurements, result *interfaces.ValidationResult) {
 	// Check for horizontal symmetry (common in many luminaires)
 	if len(photo.HorizontalAngles) >= 4 {
 		asymmetryCount := 0
@@ -264,14 +258,14 @@ func (v *Validator) validateSymmetry(photo *models.PhotometricMeasurements, resu
 		if totalComparisons > 0 {
 			asymmetryRatio := float64(asymmetryCount) / float64(totalComparisons)
 			if asymmetryRatio > 0.3 {
-				result.AddWarning("Significant asymmetry detected in candela distribution")
+				addWarning(result, "Significant asymmetry detected in candela distribution")
 			}
 		}
 	}
 }
 
 // validateCandelaValues checks for reasonable candela values
-func (v *Validator) validateCandelaValues(photo *models.PhotometricMeasurements, result *ValidationResult) {
+func (v *Validator) validateCandelaValues(photo *models.PhotometricMeasurements, result *interfaces.ValidationResult) {
 	maxCandela := 0.0
 	minCandela := math.Inf(1)
 	zeroCount := 0
@@ -297,18 +291,18 @@ func (v *Validator) validateCandelaValues(photo *models.PhotometricMeasurements,
 
 	// Check for reasonable candela range
 	if maxCandela > 100000 {
-		result.AddWarning("Maximum candela value seems unusually high (>100,000 cd)")
+		addWarning(result, "Maximum candela value seems unusually high (>100,000 cd)")
 	}
 
 	if minCandela < 0.001 && minCandela > 0 {
-		result.AddWarning("Minimum candela value seems unusually low (<0.001 cd)")
+		addWarning(result, "Minimum candela value seems unusually low (<0.001 cd)")
 	}
 
 	// Check for excessive zero values
 	if totalValues > 0 {
 		zeroRatio := float64(zeroCount) / float64(totalValues)
 		if zeroRatio > 0.5 {
-			result.AddWarning("More than 50% of candela values are zero")
+			addWarning(result, "More than 50% of candela values are zero")
 		}
 	}
 
@@ -316,20 +310,20 @@ func (v *Validator) validateCandelaValues(photo *models.PhotometricMeasurements,
 	if maxCandela > 0 && minCandela > 0 {
 		dynamicRange := maxCandela / minCandela
 		if dynamicRange > 10000 {
-			result.AddWarning("Very high dynamic range in candela values (>10,000:1)")
+			addWarning(result, "Very high dynamic range in candela values (>10,000:1)")
 		}
 	}
 }
 
 // validateDataQuality performs additional data quality checks
-func (v *Validator) validateDataQuality(data *models.PhotometricData, result *ValidationResult) {
+func (v *Validator) validateDataQuality(data *models.PhotometricData, result *interfaces.ValidationResult) {
 	// Check metadata completeness
 	if strings.TrimSpace(data.Metadata.Manufacturer) == "" {
-		result.AddWarning("Manufacturer information is missing")
+		addWarning(result, "Manufacturer information is missing")
 	}
 
 	if strings.TrimSpace(data.Metadata.CatalogNumber) == "" {
-		result.AddWarning("Catalog number is missing")
+		addWarning(result, "Catalog number is missing")
 	}
 
 	// Check for reasonable angle increments
@@ -350,7 +344,7 @@ func (v *Validator) validateDataQuality(data *models.PhotometricData, result *Va
 		}
 
 		if maxIncrement/minIncrement > 10 {
-			result.AddWarning("Inconsistent vertical angle increments")
+			addWarning(result, "Inconsistent vertical angle increments")
 		}
 	}
 
@@ -369,7 +363,7 @@ func (v *Validator) validateDataQuality(data *models.PhotometricData, result *Va
 		}
 
 		if maxIncrement/minIncrement > 10 {
-			result.AddWarning("Inconsistent horizontal angle increments")
+			addWarning(result, "Inconsistent horizontal angle increments")
 		}
 	}
 }

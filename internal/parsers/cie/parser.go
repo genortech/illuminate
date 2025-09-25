@@ -2,13 +2,14 @@ package cie
 
 import (
 	"fmt"
-	"illuminate/internal/converter"
+	"illuminate/internal/formats/cie"
+	"illuminate/internal/interfaces"
 	"illuminate/internal/models"
 	"strconv"
 	"strings"
 )
 
-// Parser implements the converter.Parser interface for CIE files
+// Parser implements the interfaces.Parser interface for CIE files
 type Parser struct {
 	supportedVersions []string
 }
@@ -16,7 +17,7 @@ type Parser struct {
 // NewParser creates a new CIE parser instance
 func NewParser() *Parser {
 	return &Parser{
-		supportedVersions: []string{string(Version102), string(VersionITable)},
+		supportedVersions: []string{string(cie.Version102), string(cie.VersionITable)},
 	}
 }
 
@@ -37,7 +38,7 @@ func (p *Parser) Parse(data []byte) (*models.PhotometricData, error) {
 
 // Validate performs format-specific validation on the parsed data
 func (p *Parser) Validate(data *models.PhotometricData) error {
-	validator := NewValidator()
+	validator := cie.NewValidator()
 	return validator.Validate(data)
 }
 
@@ -136,14 +137,14 @@ func (p *Parser) DetectFormat(data []byte) (confidence float64, version string) 
 	}
 
 	if confidence > 0.3 {
-		return confidence, string(VersionITable)
+		return confidence, string(cie.VersionITable)
 	}
 
 	return confidence, ""
 }
 
 // parseCIEFile parses the raw CIE file data into a CIEFile structure
-func (p *Parser) parseCIEFile(data []byte) (*CIEFile, error) {
+func (p *Parser) parseCIEFile(data []byte) (*cie.CIEFile, error) {
 	content := string(data)
 	lines := strings.Split(content, "\n")
 
@@ -151,7 +152,7 @@ func (p *Parser) parseCIEFile(data []byte) (*CIEFile, error) {
 		return nil, fmt.Errorf("insufficient lines in CIE file: expected at least 2, got %d", len(lines))
 	}
 
-	cieFile := &CIEFile{}
+	cieFile := &cie.CIEFile{}
 
 	// Parse header (first line)
 	if err := p.parseHeader(lines[0], cieFile); err != nil {
@@ -167,7 +168,7 @@ func (p *Parser) parseCIEFile(data []byte) (*CIEFile, error) {
 }
 
 // parseHeader parses the CIE file header (first line)
-func (p *Parser) parseHeader(headerLine string, cieFile *CIEFile) error {
+func (p *Parser) parseHeader(headerLine string, cieFile *cie.CIEFile) error {
 	line := strings.TrimSpace(headerLine)
 	fields := strings.Fields(line)
 
@@ -197,7 +198,7 @@ func (p *Parser) parseHeader(headerLine string, cieFile *CIEFile) error {
 		description = strings.Join(fields[3:], " ")
 	}
 
-	cieFile.Header = CIEHeader{
+	cieFile.Header = cie.CIEHeader{
 		FormatType:   formatType,
 		SymmetryType: symmetryType,
 		Reserved:     reserved,
@@ -208,10 +209,10 @@ func (p *Parser) parseHeader(headerLine string, cieFile *CIEFile) error {
 }
 
 // parsePhotometry parses the photometric data section
-func (p *Parser) parsePhotometry(dataLines []string, cieFile *CIEFile) error {
+func (p *Parser) parsePhotometry(dataLines []string, cieFile *cie.CIEFile) error {
 	// Set up standard CIE i-table angular grid
-	cieFile.Photometry.GammaAngles = generateStandardGammaAngles()
-	cieFile.Photometry.CPlaneAngles = generateStandardCPlaneAngles()
+	cieFile.Photometry.GammaAngles = cie.GenerateStandardGammaAngles()
+	cieFile.Photometry.CPlaneAngles = cie.GenerateStandardCPlaneAngles()
 
 	// Parse intensity data
 	var intensityData [][]float64
@@ -312,5 +313,5 @@ func (p *Parser) reshapeIntensityData(rawData [][]float64) [][]float64 {
 	return result
 }
 
-// Ensure Parser implements the converter.Parser interface
-var _ converter.Parser = (*Parser)(nil)
+// Ensure Parser implements the interfaces.Parser interface
+var _ interfaces.Parser = (*Parser)(nil)

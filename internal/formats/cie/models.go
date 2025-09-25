@@ -122,8 +122,8 @@ func (cie *CIEFile) FromCommonModel(data *models.PhotometricData) error {
 	}
 
 	// Set up standard CIE i-table angular grid
-	cie.Photometry.GammaAngles = generateStandardGammaAngles()
-	cie.Photometry.CPlaneAngles = generateStandardCPlaneAngles()
+	cie.Photometry.GammaAngles = GenerateStandardGammaAngles()
+	cie.Photometry.CPlaneAngles = GenerateStandardCPlaneAngles()
 
 	// Interpolate or map the input data to the standard CIE grid
 	intensityData, err := interpolateToStandardGrid(
@@ -258,8 +258,8 @@ func determineSymmetryType(horizontalAngles []float64) int {
 	return 0 // No symmetry (full 360°)
 }
 
-// generateStandardGammaAngles generates the standard CIE i-table gamma angles (0° to 90° in 5° steps)
-func generateStandardGammaAngles() []float64 {
+// GenerateStandardGammaAngles generates the standard CIE i-table gamma angles (0° to 90° in 5° steps)
+func GenerateStandardGammaAngles() []float64 {
 	angles := make([]float64, 19) // 0, 5, 10, ..., 90
 	for i := 0; i < 19; i++ {
 		angles[i] = float64(i * 5)
@@ -267,8 +267,8 @@ func generateStandardGammaAngles() []float64 {
 	return angles
 }
 
-// generateStandardCPlaneAngles generates the standard CIE i-table C-plane angles (0° to 337.5° in 22.5° steps)
-func generateStandardCPlaneAngles() []float64 {
+// GenerateStandardCPlaneAngles generates the standard CIE i-table C-plane angles (0° to 337.5° in 22.5° steps)
+func GenerateStandardCPlaneAngles() []float64 {
 	angles := make([]float64, 16) // 0, 22.5, 45, ..., 337.5 (16 angles, not 17)
 	for i := 0; i < 16; i++ {
 		angles[i] = float64(i) * 22.5

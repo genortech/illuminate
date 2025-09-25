@@ -2,14 +2,14 @@ package ies
 
 import (
 	"fmt"
-	"illuminate/internal/converter"
+	"illuminate/internal/interfaces"
 	"illuminate/internal/models"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-// Parser implements the converter.Parser interface for IES files
+// Parser implements the interfaces.Parser interface for IES files
 type Parser struct {
 	supportedVersions []string
 }
@@ -321,5 +321,5 @@ func min(a, b int) int {
 	return b
 }
 
-// Ensure Parser implements the converter.Parser interface
-var _ converter.Parser = (*Parser)(nil)
+// Ensure Parser implements the interfaces.Parser interface
+var _ interfaces.Parser = (*Parser)(nil)

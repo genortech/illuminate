@@ -1,7 +1,7 @@
 package ldt
 
 import (
-	"illuminate/internal/converter"
+	"illuminate/internal/interfaces"
 	"illuminate/internal/models"
 	"illuminate/internal/parsers/ldt"
 	"strings"
@@ -35,12 +35,12 @@ func TestSetOptions(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		options     converter.WriterOptions
+		options     interfaces.WriterOptions
 		expectError bool
 	}{
 		{
 			name: "valid options",
-			options: converter.WriterOptions{
+			options: interfaces.WriterOptions{
 				Precision:       2,
 				UseCommaDecimal: false,
 				FormatVersion:   string(ldt.Version10),
@@ -49,21 +49,21 @@ func TestSetOptions(t *testing.T) {
 		},
 		{
 			name: "invalid version",
-			options: converter.WriterOptions{
+			options: interfaces.WriterOptions{
 				FormatVersion: "invalid",
 			},
 			expectError: true,
 		},
 		{
 			name: "invalid precision - negative",
-			options: converter.WriterOptions{
+			options: interfaces.WriterOptions{
 				Precision: -1,
 			},
 			expectError: true,
 		},
 		{
 			name: "invalid precision - too high",
-			options: converter.WriterOptions{
+			options: interfaces.WriterOptions{
 				Precision: 11,
 			},
 			expectError: true,
@@ -203,7 +203,7 @@ func TestWriteWithCustomOptions(t *testing.T) {
 	writer := NewWriter()
 
 	// Set custom options
-	opts := converter.WriterOptions{
+	opts := interfaces.WriterOptions{
 		Precision:       2,
 		UseCommaDecimal: false, // Use dot instead of comma
 		CustomHeaders: map[string]string{

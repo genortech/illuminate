@@ -1,9 +1,9 @@
 package cie
 
 import (
-	"illuminate/internal/converter"
+	"illuminate/internal/formats/cie"
+	"illuminate/internal/interfaces"
 	"illuminate/internal/models"
-	"illuminate/internal/parsers/cie"
 	"strings"
 	"testing"
 )
@@ -608,7 +608,7 @@ func TestWriter_GetDefaultOptions(t *testing.T) {
 func TestWriter_SetOptions_StandardInterface(t *testing.T) {
 	writer := NewWriter()
 
-	opts := converter.WriterOptions{
+	opts := interfaces.WriterOptions{
 		Precision:       2,
 		UseCommaDecimal: false,
 		IncludeComments: false,

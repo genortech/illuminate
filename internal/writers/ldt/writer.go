@@ -2,22 +2,22 @@ package ldt
 
 import (
 	"fmt"
-	"illuminate/internal/converter"
+	"illuminate/internal/interfaces"
 	"illuminate/internal/models"
 	"illuminate/internal/parsers/ldt"
 	"strconv"
 	"strings"
 )
 
-// Writer implements the converter.Writer interface for LDT files
+// Writer implements the interfaces.Writer interface for LDT files
 type Writer struct {
-	options converter.WriterOptions
+	options interfaces.WriterOptions
 }
 
 // NewWriter creates a new LDT writer instance
 func NewWriter() *Writer {
 	return &Writer{
-		options: converter.WriterOptions{
+		options: interfaces.WriterOptions{
 			Precision:       1,
 			UseCommaDecimal: true, // LDT format typically uses European decimal separator
 			IncludeComments: false,
@@ -61,7 +61,7 @@ func (w *Writer) Write(data *models.PhotometricData) ([]byte, error) {
 }
 
 // SetOptions configures writer-specific options
-func (w *Writer) SetOptions(opts converter.WriterOptions) error {
+func (w *Writer) SetOptions(opts interfaces.WriterOptions) error {
 	// Validate format version
 	if opts.FormatVersion != "" {
 		version := ldt.EULUMDATVersion(opts.FormatVersion)
@@ -86,8 +86,8 @@ func (w *Writer) SetOptions(opts converter.WriterOptions) error {
 }
 
 // GetDefaultOptions returns the default writer options
-func (w *Writer) GetDefaultOptions() converter.WriterOptions {
-	return converter.WriterOptions{
+func (w *Writer) GetDefaultOptions() interfaces.WriterOptions {
+	return interfaces.WriterOptions{
 		Precision:       1,
 		UseCommaDecimal: true,
 		IncludeComments: false,
@@ -330,5 +330,5 @@ func (w *Writer) formatFloat(value float64) string {
 	return formatted
 }
 
-// Ensure Writer implements the converter.Writer interface
-var _ converter.Writer = (*Writer)(nil)
+// Ensure Writer implements the interfaces.Writer interface
+var _ interfaces.Writer = (*Writer)(nil)

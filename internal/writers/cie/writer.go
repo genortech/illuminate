@@ -2,13 +2,13 @@ package cie
 
 import (
 	"fmt"
-	"illuminate/internal/converter"
+	"illuminate/internal/formats/cie"
+	"illuminate/internal/interfaces"
 	"illuminate/internal/models"
-	"illuminate/internal/parsers/cie"
 	"strings"
 )
 
-// Writer implements the converter.Writer interface for CIE files
+// Writer implements the interfaces.Writer interface for CIE files
 type Writer struct {
 	options WriterOptions
 }
@@ -73,7 +73,7 @@ func (w *Writer) Write(data *models.PhotometricData) ([]byte, error) {
 }
 
 // SetOptions configures the writer with the provided options
-func (w *Writer) SetOptions(opts converter.WriterOptions) error {
+func (w *Writer) SetOptions(opts interfaces.WriterOptions) error {
 	// Map converter options to CIE-specific options
 	cieOpts := WriterOptions{
 		FormatType:         1, // Default CIE i-table format
@@ -92,8 +92,8 @@ func (w *Writer) SetOptions(opts converter.WriterOptions) error {
 }
 
 // GetDefaultOptions returns the default writer options
-func (w *Writer) GetDefaultOptions() converter.WriterOptions {
-	return converter.WriterOptions{
+func (w *Writer) GetDefaultOptions() interfaces.WriterOptions {
+	return interfaces.WriterOptions{
 		Precision:       0,     // Integer values
 		UseCommaDecimal: false, // Use dot as decimal separator
 		IncludeComments: true,  // Include description in header
@@ -220,5 +220,5 @@ func (w *Writer) GetFormatDescription() string {
 	return "CIE photometric file format (i-table) - International Commission on Illumination standard"
 }
 
-// Ensure Writer implements the converter.Writer interface
-var _ converter.Writer = (*Writer)(nil)
+// Ensure Writer implements the interfaces.Writer interface
+var _ interfaces.Writer = (*Writer)(nil)

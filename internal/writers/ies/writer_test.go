@@ -1,7 +1,7 @@
 package ies
 
 import (
-	"illuminate/internal/converter"
+	"illuminate/internal/interfaces"
 	"illuminate/internal/models"
 	"illuminate/internal/parsers/ies"
 	"strings"
@@ -34,12 +34,12 @@ func TestSetOptions(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		options     converter.WriterOptions
+		options     interfaces.WriterOptions
 		expectError bool
 	}{
 		{
 			name: "valid options",
-			options: converter.WriterOptions{
+			options: interfaces.WriterOptions{
 				Precision:       3,
 				UseCommaDecimal: true,
 				IncludeComments: false,
@@ -49,21 +49,21 @@ func TestSetOptions(t *testing.T) {
 		},
 		{
 			name: "invalid version",
-			options: converter.WriterOptions{
+			options: interfaces.WriterOptions{
 				FormatVersion: "INVALID",
 			},
 			expectError: true,
 		},
 		{
 			name: "invalid precision - negative",
-			options: converter.WriterOptions{
+			options: interfaces.WriterOptions{
 				Precision: -1,
 			},
 			expectError: true,
 		},
 		{
 			name: "invalid precision - too high",
-			options: converter.WriterOptions{
+			options: interfaces.WriterOptions{
 				Precision: 15,
 			},
 			expectError: true,
@@ -210,7 +210,7 @@ func TestWriteWithCustomOptions(t *testing.T) {
 	writer := NewWriter()
 
 	// Set custom options
-	options := converter.WriterOptions{
+	options := interfaces.WriterOptions{
 		Precision:       3,
 		UseCommaDecimal: true,
 		FormatVersion:   string(ies.VersionLM631995),
@@ -346,31 +346,31 @@ func TestWriteFormatFloat(t *testing.T) {
 	tests := []struct {
 		name     string
 		value    float64
-		options  converter.WriterOptions
+		options  interfaces.WriterOptions
 		expected string
 	}{
 		{
 			name:     "default precision",
 			value:    123.456,
-			options:  converter.WriterOptions{Precision: 1},
+			options:  interfaces.WriterOptions{Precision: 1},
 			expected: "123.5",
 		},
 		{
 			name:     "high precision",
 			value:    123.456789,
-			options:  converter.WriterOptions{Precision: 4},
+			options:  interfaces.WriterOptions{Precision: 4},
 			expected: "123.4568",
 		},
 		{
 			name:     "comma decimal",
 			value:    123.456,
-			options:  converter.WriterOptions{Precision: 2, UseCommaDecimal: true},
+			options:  interfaces.WriterOptions{Precision: 2, UseCommaDecimal: true},
 			expected: "123,46",
 		},
 		{
 			name:     "zero precision",
 			value:    123.456,
-			options:  converter.WriterOptions{Precision: 0},
+			options:  interfaces.WriterOptions{Precision: 0},
 			expected: "123",
 		},
 	}
