@@ -39,9 +39,9 @@
     - Write unit tests for IES writer with round-trip validation
     - _Requirements: 1.1, 1.4_
 
-- [ ] 4. Implement LDT/EULUMDAT format support
+- [x] 4. Implement LDT/EULUMDAT format support
 
-  - [ ] 4.1 Create LDT parser with EULUMDAT compliance
+  - [x] 4.1 Create LDT parser with EULUMDAT compliance
 
     - Implement LDT file parsing logic for EULUMDAT 1.0 format
     - Handle European decimal separator conventions
@@ -49,7 +49,7 @@
     - Write comprehensive unit tests for LDT parsing
     - _Requirements: 1.2, 2.2, 3.5_
 
-  - [ ] 4.2 Implement LDT file writer
+  - [x] 4.2 Implement LDT file writer
     - Create LDT file generation with EULUMDAT format compliance
     - Handle European formatting conventions properly
     - Write unit tests for LDT writer with validation
