@@ -22,7 +22,7 @@
     - Write error recovery and reporting mechanisms
     - _Requirements: 5.4, 7.4_
 
-- [-] 3. Implement IES format support
+- [x] 3. Implement IES format support
 
   - [x] 3.1 Create IES parser with standards compliance
 
@@ -55,21 +55,21 @@
     - Write unit tests for LDT writer with validation
     - _Requirements: 1.2, 1.4_
 
-- [ ] 5. Implement CIE format support
+- [x] 5. Implement CIE format support
 
-  - [ ] 5.1 Create CIE parser with format compliance
+  - [x] 5.1 Create CIE parser with format compliance
 
     - Implement CIE file parsing logic for CIE LTL format
     - Create CIE-specific data models and validation
     - Write comprehensive unit tests for CIE parsing
     - _Requirements: 1.3, 2.3, 1.5_
 
-  - [ ] 5.2 Implement CIE file writer
+  - [x] 5.2 Implement CIE file writer
     - Create CIE file generation with format compliance
     - Write unit tests for CIE writer with validation
     - _Requirements: 1.3, 1.4_
 
-- [ ] 6. Implement conversion orchestration and validation
+- [-] 6. Implement conversion orchestration and validation
 
   - [ ] 6.1 Create conversion manager with format detection
 
