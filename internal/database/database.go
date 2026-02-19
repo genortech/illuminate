@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
+
+	"illuminate/internal/logger"
 
 	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/mattn/go-sqlite3"
@@ -15,13 +17,9 @@ import (
 
 // Service represents a service that interacts with a database.
 type Service interface {
-	// Health returns a map of health status information.
-	// The keys and values in the map are service-specific.
 	Health() map[string]string
-
-	// Close terminates the database connection.
-	// It returns an error if the connection cannot be closed.
 	Close() error
+	GetDB() *sql.DB
 }
 
 type service struct {
@@ -34,22 +32,71 @@ var (
 )
 
 func New() Service {
-	// Reuse Connection
 	if dbInstance != nil {
 		return dbInstance
 	}
 
 	db, err := sql.Open("sqlite3", dburl)
 	if err != nil {
-		// This will not be a connection error, but a DSN parse error or
-		// another initialization error.
-		log.Fatal(err)
+		logger.Default.Fatal(err)
 	}
 
 	dbInstance = &service{
 		db: db,
 	}
+
+	if err := dbInstance.migrate(); err != nil {
+		logger.Default.Fatalf("migration failed: %v", err)
+	}
+
 	return dbInstance
+}
+
+func (s *service) migrate() error {
+	if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
+		version INTEGER PRIMARY KEY,
+		name TEXT NOT NULL,
+		applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`); err != nil {
+		return fmt.Errorf("create migrations table: %w", err)
+	}
+
+	migrations, err := filepath.Glob("internal/database/migrations/*.sql")
+	if err != nil {
+		return fmt.Errorf("find migrations: %w", err)
+	}
+
+	for _, m := range migrations {
+		name := filepath.Base(m)
+		var count int
+		err := s.db.QueryRow("SELECT COUNT(*) FROM schema_migrations WHERE name = ?", name).Scan(&count)
+		if err != nil {
+			return fmt.Errorf("check migration %s: %w", name, err)
+		}
+
+		if count > 0 {
+			continue
+		}
+
+		sqlContent, err := os.ReadFile(m)
+		if err != nil {
+			return fmt.Errorf("read migration %s: %w", name, err)
+		}
+
+		if _, err := s.db.Exec(string(sqlContent)); err != nil {
+			return fmt.Errorf("apply migration %s: %w", name, err)
+		}
+
+		var version int
+		fmt.Sscanf(name, "%d_", &version)
+		if _, err := s.db.Exec("INSERT INTO schema_migrations (version, name) VALUES (?, ?)", version, name); err != nil {
+			return fmt.Errorf("record migration %s: %w", name, err)
+		}
+
+		logger.Default.Infof("applied migration: %s", name)
+	}
+
+	return nil
 }
 
 // Health checks the health of the database connection by pinging the database.
@@ -65,7 +112,7 @@ func (s *service) Health() map[string]string {
 	if err != nil {
 		stats["status"] = "down"
 		stats["error"] = fmt.Sprintf("db down: %v", err)
-		log.Fatalf("db down: %v", err) // Log the error and terminate the program
+		logger.Default.Fatalf("db down: %v", err)
 		return stats
 	}
 
@@ -108,6 +155,10 @@ func (s *service) Health() map[string]string {
 // If the connection is successfully closed, it returns nil.
 // If an error occurs while closing the connection, it returns the error.
 func (s *service) Close() error {
-	log.Printf("Disconnected from database: %s", dburl)
+	logger.Default.Infof("Disconnected from database: %s", dburl)
 	return s.db.Close()
+}
+
+func (s *service) GetDB() *sql.DB {
+	return s.db
 }

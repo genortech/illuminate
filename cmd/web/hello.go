@@ -1,8 +1,9 @@
 package web
 
 import (
-	"log"
 	"net/http"
+
+	"illuminate/internal/logger"
 )
 
 func HelloWebHandler(w http.ResponseWriter, r *http.Request) {
@@ -16,6 +17,6 @@ func HelloWebHandler(w http.ResponseWriter, r *http.Request) {
 	err = component.Render(r.Context(), w)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		log.Fatalf("Error rendering in HelloWebHandler: %e", err)
+		logger.Default.Fatalf("Error rendering in HelloWebHandler: %e", err)
 	}
 }

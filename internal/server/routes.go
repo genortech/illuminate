@@ -1,10 +1,8 @@
 package server
 
 import (
-	"net/http"
-
 	"fmt"
-	"log"
+	"net/http"
 	"time"
 
 	"github.com/a-h/templ"
@@ -12,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"illuminate/cmd/web"
+	"illuminate/internal/logger"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -32,6 +31,19 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.GET("/web", echo.WrapHandler(templ.Handler(web.HelloForm())))
 	e.POST("/hello", echo.WrapHandler(http.HandlerFunc(web.HelloWebHandler)))
+
+	lumHandler := NewLuminaireHandler(s.db)
+
+	e.GET("/upload", web.UploadPageHandler)
+	e.GET("/", web.ListPageHandler)
+
+	e.POST("/api/v1/luminaires", lumHandler.Upload)
+	e.POST("/api/v1/luminaires/with-metadata", lumHandler.UploadWithMetadata)
+	e.GET("/api/v1/luminaires", lumHandler.List)
+	e.GET("/api/v1/luminaires/:id", lumHandler.Get)
+	e.PUT("/api/v1/luminaires/:id", lumHandler.Update)
+	e.DELETE("/api/v1/luminaires/:id", lumHandler.Delete)
+	e.GET("/api/v1/luminaires/:id/export", lumHandler.Export)
 
 	e.GET("/", s.HelloWorldHandler)
 
@@ -60,7 +72,7 @@ func (s *Server) websocketHandler(c echo.Context) error {
 	socket, err := websocket.Accept(w, r, nil)
 
 	if err != nil {
-		log.Printf("could not open websocket: %v", err)
+		logger.Default.Errorf("could not open websocket: %v", err)
 		_, _ = w.Write([]byte("could not open websocket"))
 		w.WriteHeader(http.StatusInternalServerError)
 		return nil

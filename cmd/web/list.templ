@@ -1,0 +1,98 @@
+package web
+
+import "fmt"
+
+type LuminaireRow struct {
+	ID               int64   `json:"id"`
+	Manufacturer     string  `json:"manufacturer"`
+	Model            string  `json:"model"`
+	CatalogNumber    string  `json:"catalog_number"`
+	Description      string  `json:"description"`
+	LampType         string  `json:"lamp_type"`
+	TestLab          string  `json:"test_lab"`
+	TestNumber       string  `json:"test_number"`
+	InputWatts       float64 `json:"input_watts"`
+	LuminousFlux     float64 `json:"luminous_flux"`
+	FormatType       string  `json:"format_type"`
+	OriginalFilename string  `json:"original_filename"`
+	CreatedAt        string  `json:"created_at"`
+}
+
+templ LuminaireList(luminaires []LuminaireRow) {
+	@Base() {
+		<div class="max-w-7xl mx-auto">
+			<div class="flex justify-between items-center mb-8">
+				<h1 class="text-3xl font-bold text-gray-800">Luminaires</h1>
+				<a href="/upload" class="bg-orange-600 hover:bg-orange-700 text-white py-2 px-6 rounded-lg">
+					Upload New
+				</a>
+			</div>
+			
+			<div class="bg-white rounded-lg shadow-md overflow-hidden">
+				<div class="p-4 border-b border-gray-200">
+					<input type="text" id="search" placeholder="Search by manufacturer or model..." 
+						class="w-full border border-gray-300 rounded-lg px-4 py-2"/>
+				</div>
+				
+				<table class="min-w-full divide-y divide-gray-200">
+					<thead class="bg-gray-50">
+						<tr>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manufacturer</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Format</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Watts</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lumens</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
+							<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+						</tr>
+					</thead>
+					<tbody class="bg-white divide-y divide-gray-200">
+						if len(luminaires) == 0 {
+							<tr>
+								<td colspan="7" class="px-6 py-12 text-center text-gray-500">
+									No luminaires found. <a href="/upload" class="text-orange-600 hover:underline">Upload one now</a>
+								</td>
+							</tr>
+						} else {
+							for _, lum := range luminaires {
+								<tr class="hover:bg-gray-50">
+									<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{ lum.Manufacturer }</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ lum.Model }</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ lum.FormatType }</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ fmtWatts(lum.InputWatts) }</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ fmtLumens(lum.LuminousFlux) }</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ lum.CreatedAt }</td>
+									<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+										<a href={ templ.URL(fmt.Sprintf("/luminaires/%d", lum.ID)) } class="text-orange-600 hover:text-orange-900 mr-4">View</a>
+										<div class="inline-block relative group">
+											<button class="text-gray-600 hover:text-gray-900">Export</button>
+											<div class="absolute right-0 mt-0 w-32 bg-white rounded-md shadow-lg hidden group-hover:block z-10">
+												<a href={ templ.URL(fmt.Sprintf("/api/v1/luminaires/%d/export?format=ies", lum.ID)) } class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">IES</a>
+												<a href={ templ.URL(fmt.Sprintf("/api/v1/luminaires/%d/export?format=cie", lum.ID)) } class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">CIE</a>
+												<a href={ templ.URL(fmt.Sprintf("/api/v1/luminaires/%d/export?format=ldt", lum.ID)) } class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">LDT</a>
+											</div>
+										</div>
+									</td>
+								</tr>
+							}
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	}
+}
+
+func fmtWatts(w float64) string {
+	if w == 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%.1f W", w)
+}
+
+func fmtLumens(l float64) string {
+	if l == 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%.0f lm", l)
+}
