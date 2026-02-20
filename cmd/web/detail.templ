@@ -1,0 +1,219 @@
+package web
+
+import "fmt"
+
+templ LuminaireDetailPage(lum LuminaireDetail, photo PhotometricDataDetail) {
+	@Base() {
+		<div class="max-w-5xl mx-auto">
+			<div class="flex justify-between items-center mb-8">
+				<div>
+					<a href="/" class="text-orange-600 hover:underline text-sm">← Back to Luminaires</a>
+					<h1 class="text-3xl font-bold text-gray-800 mt-2">{ lum.Manufacturer } { lum.Model }</h1>
+				</div>
+				<div class="flex space-x-2">
+					<div class="relative group">
+						<button class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg">Export</button>
+						<div class="absolute right-0 mt-0 w-32 bg-white rounded-md shadow-lg hidden group-hover:block z-10">
+							<a href={ templ.URL(fmt.Sprintf("/api/v1/luminaires/%d/export?format=ies", lum.ID)) } class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">IES</a>
+							<a href={ templ.URL(fmt.Sprintf("/api/v1/luminaires/%d/export?format=cie", lum.ID)) } class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">CIE</a>
+							<a href={ templ.URL(fmt.Sprintf("/api/v1/luminaires/%d/export?format=ldt", lum.ID)) } class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">LDT</a>
+						</div>
+					</div>
+					<button onclick="deleteLuminaire()" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg">Delete</button>
+				</div>
+			</div>
+
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+				<div class="md:col-span-2 space-y-6">
+					<div class="bg-white rounded-lg shadow-md p-6">
+						<h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Basic Information</h2>
+						<div class="grid grid-cols-2 gap-4">
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Manufacturer</div>
+								<div class="text-sm text-gray-800">{ lum.Manufacturer }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Model</div>
+								<div class="text-sm text-gray-800">{ lum.Model }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Catalog Number</div>
+								<div class="text-sm text-gray-800">{ showDash(lum.CatalogNumber) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Test Number</div>
+								<div class="text-sm text-gray-800">{ showDash(lum.TestNumber) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Test Lab</div>
+								<div class="text-sm text-gray-800">{ showDash(lum.TestLab) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Issue Date</div>
+								<div class="text-sm text-gray-800">{ showDash(lum.IssueDate) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Test Date</div>
+								<div class="text-sm text-gray-800">{ showDash(lum.TestDate) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Format</div>
+								<div class="text-sm text-gray-800">{ lum.FormatType }</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="bg-white rounded-lg shadow-md p-6">
+						<h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Luminaire Details</h2>
+						<div class="grid grid-cols-2 gap-4">
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Description</div>
+								<div class="text-sm text-gray-800">{ showDash(lum.LuminaireDesc) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Lamp Type</div>
+								<div class="text-sm text-gray-800">{ showDash(lum.LampType) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Lamp Catalog</div>
+								<div class="text-sm text-gray-800">{ showDash(lum.LampCatalog) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Ballast</div>
+								<div class="text-sm text-gray-800">{ showDash(lum.Ballast) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Luminaire Candela</div>
+								<div class="text-sm text-gray-800">{ showDash(lum.LuminaireCandela) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Lamp Position</div>
+								<div class="text-sm text-gray-800">{ showDash(lum.LampPosition) }</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="bg-white rounded-lg shadow-md p-6">
+						<h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Photometric Data</h2>
+						<div class="grid grid-cols-2 gap-4">
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Symmetry</div>
+								<div class="text-sm text-gray-800">{ fmt.Sprintf("%d", lum.Symmetry) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Photometric Type</div>
+								<div class="text-sm text-gray-800">{ photometricTypeName(lum.PhotometricType) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Units Type</div>
+								<div class="text-sm text-gray-800">{ lum.UnitsType }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Conversion Factor</div>
+								<div class="text-sm text-gray-800">{ fmt.Sprintf("%.4f", lum.ConversionFactor) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Color Temp</div>
+								<div class="text-sm text-gray-800">{ fmt.Sprintf("%d K", lum.ColorTemp) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">CRI</div>
+								<div class="text-sm text-gray-800">{ fmt.Sprintf("%d", lum.CRI) }</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="space-y-6">
+					<div class="bg-white rounded-lg shadow-md p-6">
+						<h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Performance</h2>
+						<div class="text-center py-4">
+							<div class="text-4xl font-bold text-orange-600">{ fmt.Sprintf("%.1f", lum.InputWatts) }</div>
+							<div class="text-gray-500 text-sm">Watts</div>
+						</div>
+						<div class="text-center py-4 border-t">
+							<div class="text-4xl font-bold text-orange-600">{ fmt.Sprintf("%.0f", lum.LuminousFlux) }</div>
+							<div class="text-gray-500 text-sm">Lumens</div>
+						</div>
+						<div class="text-center py-4 border-t">
+							<div class="text-4xl font-bold text-gray-700">{ fmt.Sprintf("%.1f", lum.LuminousFlux/lum.InputWatts) }</div>
+							<div class="text-gray-500 text-sm">Efficacy (lm/W)</div>
+						</div>
+					</div>
+
+					<div class="bg-white rounded-lg shadow-md p-6">
+						<h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">File Info</h2>
+						<div class="space-y-3">
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Filename</div>
+								<div class="text-sm text-gray-800 break-all">{ lum.OriginalFilename }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">File Hash</div>
+								<div class="text-xs text-gray-600 font-mono break-all">{ lum.FileHash }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Uploaded</div>
+								<div class="text-sm text-gray-800">{ lum.CreatedAt }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">ID</div>
+								<div class="text-sm text-gray-800">{ fmt.Sprintf("%d", lum.ID) }</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="bg-white rounded-lg shadow-md p-6">
+						<h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Angle Data</h2>
+						<div class="space-y-3">
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Vertical Angles</div>
+								<div class="text-sm text-gray-800">{ fmt.Sprintf("%d points", photo.NumVerticalAngles) }</div>
+							</div>
+							<div>
+								<div class="text-xs text-gray-500 uppercase">Horizontal Angles</div>
+								<div class="text-sm text-gray-800">{ fmt.Sprintf("%d points", photo.NumHorizontalAngles) }</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<script>
+				function deleteLuminaire() {
+					if (!confirm('Are you sure you want to delete this luminaire?')) return;
+					var id = window.location.pathname.split('/').pop();
+					fetch('/api/v1/luminaires/' + id, { method: 'DELETE' })
+						.then(function(r) { return r.json(); })
+						.then(function(data) {
+							if (data.status === 'deleted') {
+								window.location.href = '/';
+							} else {
+								alert('Failed to delete: ' + data.error);
+							}
+						});
+				}
+			</script>
+		</div>
+	}
+}
+
+func showDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}
+
+func photometricTypeName(t int) string {
+	switch t {
+	case 1:
+		return "Type C"
+	case 2:
+		return "Type B"
+	case 3:
+		return "Type A"
+	default:
+		return fmt.Sprintf("Type %d", t)
+	}
+}

@@ -36,6 +36,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.GET("/upload", web.UploadPageHandler)
 	e.GET("/", web.ListPageHandler)
+	e.GET("/admin", web.ListPageHandler)
+	e.GET("/luminaires/:id", web.DetailPageHandler)
 
 	e.POST("/api/v1/luminaires", lumHandler.Upload)
 	e.POST("/api/v1/luminaires/with-metadata", lumHandler.UploadWithMetadata)
@@ -44,8 +46,6 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.PUT("/api/v1/luminaires/:id", lumHandler.Update)
 	e.DELETE("/api/v1/luminaires/:id", lumHandler.Delete)
 	e.GET("/api/v1/luminaires/:id/export", lumHandler.Export)
-
-	e.GET("/", s.HelloWorldHandler)
 
 	e.GET("/health", s.healthHandler)
 

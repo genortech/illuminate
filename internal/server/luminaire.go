@@ -30,7 +30,7 @@ func (h *LuminaireHandler) Upload(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file is required"})
 	}
 
-	logger.Default.Infof("upload started: filename=%s", file.Filename)
+	logger.Default.Infof("=== UPLOAD START: filename=%s ===", file.Filename)
 
 	src, err := file.Open()
 	if err != nil {
@@ -39,7 +39,7 @@ func (h *LuminaireHandler) Upload(c echo.Context) error {
 	defer src.Close()
 
 	tmpDir := os.TempDir()
-	tmpPath := filepath.Join(tmpDir, file.Filename)
+	tmpPath := filepath.Join(tmpDir, "tmp_"+file.Filename)
 	dst, err := os.Create(tmpPath)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create temp file"})
@@ -49,21 +49,20 @@ func (h *LuminaireHandler) Upload(c echo.Context) error {
 	if _, err := io.Copy(dst, src); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to save file"})
 	}
-	defer os.Remove(tmpPath)
 
 	p, err := parser.GetParser(file.Filename)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
-	logger.Default.Infof("parsing file: filename=%s", file.Filename)
+	logger.Default.Infof("parsing file: %s", tmpPath)
 	lum, err := p.Parse(tmpPath)
 	if err != nil {
 		logger.Default.Errorf("parse failed: filename=%s, error=%v", file.Filename, err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("parse error: %v", err)})
 	}
 
-	logger.Default.Debugf("parsed luminaire: manufacturer=%s, model=%s", lum.Metadata.Manufacturer, lum.Metadata.Model)
+	logger.Default.Infof("parsed: manufacturer=%s, model=%s, format=%s", lum.Metadata.Manufacturer, lum.Metadata.Model, lum.Metadata.FormatType)
 
 	lum.Metadata.OriginalFilename = file.Filename
 	lum.Metadata.FormatType = parser.DetectFormat(file.Filename)
@@ -77,8 +76,11 @@ func (h *LuminaireHandler) Upload(c echo.Context) error {
 	}
 
 	if len(missingFields) > 0 {
-		logger.Default.Infof("metadata required: filename=%s, missing=%v", file.Filename, missingFields)
-		return c.JSON(http.StatusContinue, map[string]interface{}{
+		newTmpPath := filepath.Join(tmpDir, lum.Metadata.FileHash+"_"+file.Filename)
+		os.Rename(tmpPath, newTmpPath)
+		logger.Default.Infof("METADATA REQUIRED: filename=%s, hash=%s, missing=%v", file.Filename, lum.Metadata.FileHash, missingFields)
+		logger.Default.Infof("temp file saved as: %s", newTmpPath)
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"status":    "metadata_required",
 			"missing":   missingFields,
 			"luminaire": lum.Metadata,
@@ -86,12 +88,14 @@ func (h *LuminaireHandler) Upload(c echo.Context) error {
 		})
 	}
 
+	os.Remove(tmpPath)
+	logger.Default.Infof("saving directly: manufacturer=%s, model=%s", lum.Metadata.Manufacturer, lum.Metadata.Model)
 	lumID, err := h.saveLuminaire(lum)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
-	logger.Default.Infof("upload completed: filename=%s, luminaire_id=%d", file.Filename, lumID)
+	logger.Default.Infof("=== UPLOAD COMPLETE: filename=%s, luminaire_id=%d ===", file.Filename, lumID)
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"status":       "uploaded",
 		"luminaire_id": lumID,
@@ -99,7 +103,8 @@ func (h *LuminaireHandler) Upload(c echo.Context) error {
 }
 
 func (h *LuminaireHandler) UploadWithMetadata(c echo.Context) error {
-	_ = c.FormValue("file_hash")
+	fileHash := c.FormValue("file_hash")
+	originalFilename := c.FormValue("original_filename")
 	manufacturer := c.FormValue("manufacturer")
 	model := c.FormValue("model")
 	catalogNumber := c.FormValue("catalog_number")
@@ -111,60 +116,101 @@ func (h *LuminaireHandler) UploadWithMetadata(c echo.Context) error {
 	inputWatts := c.FormValue("input_watts")
 	luminousFlux := c.FormValue("luminous_flux")
 
-	logger.Default.Infof("upload with metadata: manufacturer=%s, model=%s", manufacturer, model)
+	logger.Default.Infof("=== UPLOAD WITH METADATA START ===")
+	logger.Default.Infof("file_hash=%s, original_filename=%s", fileHash, originalFilename)
+	logger.Default.Infof("manufacturer=%s, model=%s", manufacturer, model)
+	logger.Default.Infof("catalog_number=%s, test_lab=%s, test_number=%s", catalogNumber, testLab, testNumber)
+	logger.Default.Infof("input_watts=%s, luminous_flux=%s", inputWatts, luminousFlux)
+
+	if fileHash == "" || originalFilename == "" {
+		logger.Default.Error("file_hash or original_filename is empty")
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file_hash and original_filename are required"})
+	}
 
 	tmpDir := os.TempDir()
-	tmpFiles, _ := os.ReadDir(tmpDir)
+	tmpPath := filepath.Join(tmpDir, fileHash+"_"+originalFilename)
 
-	var tmpPath string
-	for _, f := range tmpFiles {
-		if f.IsDir() {
-			continue
-		}
-		name := f.Name()
-		if len(name) > 4 {
-			ext := name[len(name)-4:]
-			if ext == ".ies" || ext == ".cie" || ext == ".ldt" {
+	logger.Default.Infof("looking for temp file: %s", tmpPath)
+
+	if _, err := os.Stat(tmpPath); os.IsNotExist(err) {
+		logger.Default.Infof("exact path not found, searching in temp dir...")
+		tmpFiles, _ := os.ReadDir(tmpDir)
+		for _, f := range tmpFiles {
+			if f.IsDir() {
+				continue
+			}
+			name := f.Name()
+			logger.Default.Infof("checking temp file: %s", name)
+			if strings.HasPrefix(name, fileHash) {
 				tmpPath = filepath.Join(tmpDir, name)
+				logger.Default.Infof("found matching temp file: %s", tmpPath)
 				break
 			}
 		}
 	}
 
-	if tmpPath == "" {
+	if _, err := os.Stat(tmpPath); os.IsNotExist(err) {
+		logger.Default.Errorf("temp file NOT FOUND: hash=%s, filename=%s, searched=%s", fileHash, originalFilename, tmpPath)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file not found, please upload again"})
 	}
 
+	logger.Default.Infof("temp file found, parsing: %s", tmpPath)
 	p, err := parser.GetParser(tmpPath)
 	if err != nil {
+		logger.Default.Errorf("GetParser failed: %v", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	lum, err := p.Parse(tmpPath)
 	if err != nil {
+		logger.Default.Errorf("Parse failed: %v", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("parse error: %v", err)})
 	}
 
-	lum.Metadata.Manufacturer = manufacturer
-	lum.Metadata.Model = model
-	lum.Metadata.CatalogNumber = catalogNumber
-	lum.Metadata.LuminaireDesc = luminaireDesc
-	lum.Metadata.LampType = lampType
-	lum.Metadata.TestLab = testLab
-	lum.Metadata.TestNumber = testNumber
-	lum.Metadata.IssueDate = issueDate
-	if w, err := strconv.ParseFloat(inputWatts, 64); err == nil {
+	logger.Default.Infof("parse successful, format_type=%s", lum.Metadata.FormatType)
+
+	// Only overwrite with user input if provided
+	if manufacturer != "" {
+		lum.Metadata.Manufacturer = manufacturer
+	}
+	if model != "" {
+		lum.Metadata.Model = model
+	}
+	if catalogNumber != "" {
+		lum.Metadata.CatalogNumber = catalogNumber
+	}
+	if luminaireDesc != "" {
+		lum.Metadata.LuminaireDesc = luminaireDesc
+	}
+	if lampType != "" {
+		lum.Metadata.LampType = lampType
+	}
+	if testLab != "" {
+		lum.Metadata.TestLab = testLab
+	}
+	if testNumber != "" {
+		lum.Metadata.TestNumber = testNumber
+	}
+	if issueDate != "" {
+		lum.Metadata.IssueDate = issueDate
+	}
+	lum.Metadata.OriginalFilename = originalFilename
+	if w, err := strconv.ParseFloat(inputWatts, 64); err == nil && w > 0 {
 		lum.Metadata.InputWatts = w
 	}
-	if f, err := strconv.ParseFloat(luminousFlux, 64); err == nil {
+	if f, err := strconv.ParseFloat(luminousFlux, 64); err == nil && f > 0 {
 		lum.Metadata.LuminousFlux = f
 	}
 
+	logger.Default.Infof("saving luminaire to database: manufacturer=%s, model=%s", lum.Metadata.Manufacturer, lum.Metadata.Model)
 	lumID, err := h.saveLuminaire(lum)
 	if err != nil {
+		logger.Default.Errorf("saveLuminaire failed: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
+	os.Remove(tmpPath)
+	logger.Default.Infof("=== UPLOAD COMPLETE: luminaire_id=%d ===", lumID)
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"status":       "uploaded",
 		"luminaire_id": lumID,
