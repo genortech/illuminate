@@ -39,7 +39,7 @@ func (p *CIEParser) Parse(filepath string) (*database.ParsedLuminaire, error) {
 
 	metadata := database.Luminaire{
 		OriginalFilename: filepath,
-		FormatType:       "CIE (CIE 102)",
+		FormatType:       "CIE",
 	}
 
 	var candelaLines []string
@@ -55,7 +55,8 @@ func (p *CIEParser) Parse(filepath string) (*database.ParsedLuminaire, error) {
 			if match := cieHeaderRegex.FindStringSubmatch(line); match != nil {
 				metadata.SymmetryFlag, _ = strconv.Atoi(match[1])
 				formatType, _ := strconv.Atoi(match[2])
-				metadata.FormatType = fmt.Sprintf("CIE (CIE %d)", formatType)
+				_ = formatType
+				metadata.FormatType = "CIE"
 
 				nameAndFlux := strings.TrimSpace(match[4])
 				metadata.LuminaireDesc = nameAndFlux
