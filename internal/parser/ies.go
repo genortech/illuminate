@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"regexp"
 	"strconv"
@@ -105,11 +106,32 @@ func (p *IESParser) Parse(filepath string) (*database.ParsedLuminaire, error) {
 	metadata.LampPosition = keywords["LAMPPOSITION"]
 
 	mainData := strings.Fields(mainDataLine)
+	var candelaMultiplier float64 = 1.0
+	var lumensPerLamp float64 = 0
+
 	if len(mainData) >= 10 {
+		// Candela multiplier (position 2, index 2)
+		if n, err := strconv.ParseFloat(mainData[2], 64); err == nil && n != 0 {
+			candelaMultiplier = n
+		}
+		// Lumens per lamp (position 1, index 1), -1 means use actual
+		if n, err := strconv.ParseFloat(mainData[1], 64); err == nil && n > 0 {
+			lumensPerLamp = n
+		}
+		// Photometric type (position 4, index 3)
 		if n, err := strconv.Atoi(mainData[3]); err == nil {
 			metadata.PhotometricType = database.PhotometricType(n)
 		}
-		if n, err := strconv.Atoi(mainData[7]); err == nil {
+		// Units type (position 7, index 6)
+		if n, err := strconv.Atoi(mainData[6]); err == nil {
+			if n == 1 {
+				metadata.UnitsType = database.UnitsImperial
+			} else {
+				metadata.UnitsType = database.UnitsMetric
+			}
+		}
+		// Input watts (position 10, index 9)
+		if n, err := strconv.Atoi(mainData[9]); err == nil {
 			metadata.InputWatts = float64(n)
 		}
 	}
@@ -118,11 +140,22 @@ func (p *IESParser) Parse(filepath string) (*database.ParsedLuminaire, error) {
 	horizontalAngles := parseFloatLine(horizontalAnglesLine)
 
 	var candelaMatrix [][]float64
+	var totalCandela float64
 	for _, line := range candelaLines {
 		row := parseFloatLine(line)
 		if len(row) > 0 {
+			for _, v := range row {
+				totalCandela += v * candelaMultiplier
+			}
+			row = multiplySlice(row, candelaMultiplier)
 			candelaMatrix = append(candelaMatrix, row)
 		}
+	}
+
+	if lumensPerLamp > 0 {
+		metadata.LuminousFlux = lumensPerLamp
+	} else if len(verticalAngles) > 0 && len(horizontalAngles) > 0 && totalCandela > 0 {
+		metadata.LuminousFlux = calculateLuminousFlux(verticalAngles, horizontalAngles, candelaMatrix)
 	}
 
 	fileHash := fmt.Sprintf("%x", hash.Sum(nil))
@@ -231,4 +264,40 @@ func floatSliceToString(vals []float64) string {
 		sb.WriteString(fmt.Sprintf("%.1f", v))
 	}
 	return sb.String()
+}
+
+func multiplySlice(vals []float64, multiplier float64) []float64 {
+	result := make([]float64, len(vals))
+	for i, v := range vals {
+		result[i] = v * multiplier
+	}
+	return result
+}
+
+func calculateLuminousFlux(verticalAngles, horizontalAngles []float64, candelaMatrix [][]float64) float64 {
+	var totalFlux float64
+	for hIdx, row := range candelaMatrix {
+		if hIdx >= len(horizontalAngles) {
+			break
+		}
+		if hIdx == 0 || hIdx == len(horizontalAngles)-1 {
+			continue
+		}
+		hDiff := (horizontalAngles[min(hIdx+1, len(horizontalAngles)-1)] - horizontalAngles[max(hIdx-1, 0)]) * math.Pi / 180
+
+		for vIdx, candela := range row {
+			if vIdx >= len(verticalAngles) {
+				break
+			}
+			vAngle := verticalAngles[vIdx]
+			if vIdx == 0 || vIdx == len(verticalAngles)-1 {
+				continue
+			}
+			vDiff := (verticalAngles[min(vIdx+1, len(verticalAngles)-1)] - verticalAngles[max(vIdx-1, 0)]) * math.Pi / 180
+
+			flux := candela * math.Sin(vAngle*math.Pi/180) * vDiff * hDiff
+			totalFlux += flux
+		}
+	}
+	return totalFlux
 }

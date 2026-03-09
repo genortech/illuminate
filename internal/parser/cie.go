@@ -96,13 +96,13 @@ func (p *CIEParser) Parse(filepath string) (*database.ParsedLuminaire, error) {
 		verticalAngles[i] = float64(i * 10)
 	}
 
+	horizontalAngles := make([]float64, 0)
 	if len(candelaMatrix) > 0 {
-		horizontalAngles := make([]float64, len(candelaMatrix[0]))
+		horizontalAngles = make([]float64, len(candelaMatrix[0]))
 		for i := range horizontalAngles {
 			horizontalAngles[i] = float64(i * 10)
 		}
 		metadata.Symmetry = metadata.SymmetryFlag
-		_ = horizontalAngles
 	}
 
 	fileHash := fmt.Sprintf("%x", hash.Sum(nil))
@@ -112,9 +112,10 @@ func (p *CIEParser) Parse(filepath string) (*database.ParsedLuminaire, error) {
 		fileHash, len(verticalAngles), len(candelaMatrix))
 
 	return &database.ParsedLuminaire{
-		Metadata:       metadata,
-		VerticalAngles: verticalAngles,
-		CandelaMatrix:  candelaMatrix,
+		Metadata:         metadata,
+		VerticalAngles:   verticalAngles,
+		HorizontalAngles: horizontalAngles,
+		CandelaMatrix:    candelaMatrix,
 	}, nil
 }
 
