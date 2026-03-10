@@ -35,7 +35,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	lumHandler := NewLuminaireHandler(s.db)
 
 	e.GET("/upload", web.UploadPageHandler)
-	e.GET("/", web.ListPageHandler)
+	e.GET("/", web.LandingPageHandler)
 	e.GET("/admin", web.ListPageHandler)
 	e.GET("/luminaires/:id", web.DetailPageHandler)
 

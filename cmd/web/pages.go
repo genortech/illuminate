@@ -57,6 +57,10 @@ type PhotometricDataDetail struct {
 	NumHorizontalAngles int    `json:"num_horizontal_angles"`
 }
 
+func LandingPageHandler(c echo.Context) error {
+	return Landing().Render(c.Request().Context(), c.Response())
+}
+
 func UploadPageHandler(c echo.Context) error {
 	return UploadForm().Render(c.Request().Context(), c.Response())
 }

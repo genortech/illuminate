@@ -3,7 +3,7 @@ module illuminate
 go 1.25.7
 
 require (
-	github.com/a-h/templ v0.3.977
+	github.com/a-h/templ v0.3.1001
 	github.com/coder/websocket v1.8.14
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.15.0
