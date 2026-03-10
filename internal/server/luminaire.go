@@ -2,6 +2,7 @@ package server
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -528,6 +529,148 @@ func (h *LuminaireHandler) Export(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
+
+	return c.Blob(http.StatusOK, "application/octet-stream", data)
+}
+
+func (h *LuminaireHandler) ConvertIEStoCIE(c echo.Context) error {
+	isHTMX := c.Request().Header.Get("HX-Request") == "true"
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		if isHTMX {
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"success": false,
+				"error":   "file is required",
+			})
+		}
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file is required"})
+	}
+
+	logger.Default.Infof("=== CONVERT START: filename=%s, htmx=%v ===", file.Filename, isHTMX)
+
+	if !strings.HasSuffix(strings.ToLower(file.Filename), ".ies") {
+		if isHTMX {
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"success": false,
+				"error":   "only .ies files are supported",
+			})
+		}
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "only .ies files are supported"})
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		if isHTMX {
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"success": false,
+				"error":   "failed to open file",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to open file"})
+	}
+	defer src.Close()
+
+	tmpDir := os.TempDir()
+	tmpPath := filepath.Join(tmpDir, "convert_"+file.Filename)
+	dst, err := os.Create(tmpPath)
+	if err != nil {
+		if isHTMX {
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"success": false,
+				"error":   "failed to create temp file",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create temp file"})
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, src); err != nil {
+		if isHTMX {
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"success": false,
+				"error":   "failed to save file",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to save file"})
+	}
+
+	p, err := parser.GetParser(file.Filename)
+	if err != nil {
+		if isHTMX {
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"success": false,
+				"error":   err.Error(),
+			})
+		}
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
+	lum, err := p.Parse(tmpPath)
+	if err != nil {
+		logger.Default.Errorf("parse failed: %v", err)
+		if isHTMX {
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"success": false,
+				"error":   fmt.Sprintf("parse error: %v", err),
+			})
+		}
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("parse error: %v", err)})
+	}
+
+	cieParser, err := parser.GetParser("output.cie")
+	if err != nil {
+		if isHTMX {
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"success": false,
+				"error":   "failed to create CIE parser",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create CIE parser"})
+	}
+
+	cieFilename := strings.TrimSuffix(file.Filename, ".ies") + ".cie"
+	ciePath := filepath.Join(tmpDir, cieFilename)
+
+	if err := cieParser.Write(lum, ciePath); err != nil {
+		logger.Default.Errorf("write CIE failed: %v", err)
+		if isHTMX {
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"success": false,
+				"error":   fmt.Sprintf("failed to write CIE: %v", err),
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("failed to write CIE: %v", err)})
+	}
+
+	data, err := os.ReadFile(ciePath)
+	if err != nil {
+		if isHTMX {
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"success": false,
+				"error":   "failed to read converted file",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to read converted file"})
+	}
+	defer os.Remove(ciePath)
+	defer os.Remove(tmpPath)
+
+	baseFilename := strings.TrimSuffix(file.Filename, filepath.Ext(file.Filename))
+	downloadFilename := baseFilename + ".cie"
+
+	logger.Default.Infof("=== CONVERT COMPLETE: %s ===", downloadFilename)
+
+	if isHTMX {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"success":  true,
+			"filename": downloadFilename,
+			"data":     base64.StdEncoding.EncodeToString(data),
+		})
+	}
+
+	c.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", downloadFilename))
+	c.Response().Header().Set("Content-Type", "application/octet-stream")
 
 	return c.Blob(http.StatusOK, "application/octet-stream", data)
 }

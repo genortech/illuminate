@@ -3,7 +3,7 @@ package web
 type ConversionResult struct {
 	Success   bool   `json:"success"`
 	Message   string `json:"message"`
-	OutputURL string `json:"output_url,omitempty"`
+	Filename  string `json:"filename,omitempty"`
 }
 
 templ Landing() {
@@ -35,8 +35,11 @@ templ Landing() {
 							hx-post="/api/v1/convert" 
 							hx-target="#converter-result"
 							hx-swap="innerHTML"
+							hx-indicator="#loading-indicator"
+							hx-on::after-request="if(event.detail.successful) { handleConvertResponse(event.detail); }"
 							enctype="multipart/form-data"
 							class="space-y-6"
+							id="convert-form"
 						>
 							<div>
 								<label class="block text-sm font-medium text-gray-300 mb-2">
@@ -48,6 +51,7 @@ templ Landing() {
 										name="file" 
 										accept=".ies"
 										required
+										id="file-input"
 										class="block w-full text-sm text-gray-300
 											file:mr-4 file:py-2 file:px-4
 											file:rounded-lg file:border-0
@@ -65,11 +69,19 @@ templ Landing() {
 
 							<button 
 								type="submit"
-								class="w-full bg-primary hover:bg-primary-hover text-white font-semibold py-3 px-6 rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+								id="convert-btn"
+								class="w-full bg-primary hover:bg-primary-hover text-white font-semibold py-3 px-6 rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								Convert to CIE
 							</button>
 						</form>
+
+						<div id="loading-indicator" class="hidden mt-6">
+							<div class="flex items-center justify-center p-4">
+								<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+								<span class="ml-3 text-gray-400">Converting...</span>
+							</div>
+						</div>
 
 						<div id="converter-result" class="mt-6"></div>
 					</div>
@@ -134,31 +146,74 @@ templ Landing() {
 	}
 }
 
-templ ConversionSuccess(filename, downloadURL string) {
-	<div class="bg-accent/10 border border-accent/30 rounded-lg p-4 flex items-center justify-between">
-		<div>
-			<p class="text-accent font-medium">Conversion successful!</p>
-			<p class="text-sm text-gray-400">{filename}</p>
+templ ConversionSuccess(filename string) {
+	<div class="bg-accent/10 border border-accent/30 rounded-lg p-6 text-center">
+		<div class="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-3">
+			<svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+			</svg>
 		</div>
-		<a 
-			href={templ.URL(downloadURL)} 
-			class="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-lg transition-colors"
+		<p class="text-accent font-semibold text-lg mb-1">Conversion Successful!</p>
+		<p class="text-gray-400 text-sm mb-4">{filename}</p>
+		<button 
+			onclick="downloadFile()"
+			class="bg-accent hover:bg-accent-hover text-white font-semibold py-2 px-6 rounded-lg transition-colors inline-flex items-center"
 		>
-			Download CIE
-		</a>
+			<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+			</svg>
+			Download CIE File
+		</button>
 	</div>
+	<script>
+		let lastFilename = '';
+		function downloadFile() {
+			const fileInput = document.getElementById('file-input');
+			if (fileInput && fileInput.files.length > 0) {
+				const baseName = fileInput.files[0].name.replace(/\.ies$/i, '');
+				lastFilename = baseName + '.cie';
+			}
+			if (lastFilename) {
+				const formData = new FormData();
+				formData.append('file', fileInput.files[0]);
+				
+				fetch('/api/v1/convert', {
+					method: 'POST',
+					body: formData
+				})
+				.then(response => {
+					if (!response.ok) {
+						throw new Error('Conversion failed');
+					}
+					return response.blob();
+				})
+				.then(blob => {
+					const url = window.URL.createObjectURL(blob);
+					const a = document.createElement('a');
+					a.href = url;
+					a.download = lastFilename;
+					document.body.appendChild(a);
+					a.click();
+					window.URL.revokeObjectURL(url);
+					document.body.removeChild(a);
+				})
+				.catch(err => {
+					console.error('Download failed:', err);
+					alert('Download failed. Please try again.');
+				});
+			}
+		}
+	</script>
 }
 
 templ ConversionError(message string) {
-	<div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-		<p class="text-red-400 font-medium">Conversion failed</p>
-		<p class="text-sm text-gray-400">{message}</p>
-	</div>
-}
-
-templ ConversionLoading() {
-	<div class="flex items-center justify-center p-4">
-		<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-		<span class="ml-3 text-gray-400">Converting...</span>
+	<div class="bg-red-500/10 border border-red-500/30 rounded-lg p-6 text-center">
+		<div class="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+			<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+			</svg>
+		</div>
+		<p class="text-red-400 font-semibold text-lg mb-1">Conversion Failed</p>
+		<p class="text-gray-400 text-sm">{message}</p>
 	</div>
 }

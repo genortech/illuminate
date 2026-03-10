@@ -8,21 +8,98 @@ templ Base() {
 			<meta name="viewport" content="width=device-width,initial-scale=1"/>
 			<title>Illuminate - Photometric Data Converter</title>
 			<link href="/assets/css/output.css" rel="stylesheet"/>
-			<script src="/assets/js/htmx.min.js"></script>
-			<script>
-				function toggleDarkMode() {
-					const html = document.documentElement;
-					html.classList.toggle('dark');
-					const isDark = html.classList.contains('dark');
-					localStorage.setItem('darkMode', isDark ? 'dark' : 'light');
+		<script src="/assets/js/htmx.min.js"></script>
+		<script>
+			document.addEventListener('htmx:configRequest', function(evt) {
+				document.getElementById('convert-btn').disabled = true;
+			});
+			document.addEventListener('htmx:afterRequest', function(evt) {
+				document.getElementById('convert-btn').disabled = false;
+			});
+		</script>
+		<script>
+			function toggleDarkMode() {
+				const html = document.documentElement;
+				html.classList.toggle('dark');
+				const isDark = html.classList.contains('dark');
+				localStorage.setItem('darkMode', isDark ? 'dark' : 'light');
+			}
+			document.addEventListener('DOMContentLoaded', () => {
+				const saved = localStorage.getItem('darkMode');
+				if (saved === 'light') {
+					document.documentElement.classList.remove('dark');
 				}
-				document.addEventListener('DOMContentLoaded', () => {
-					const saved = localStorage.getItem('darkMode');
-					if (saved === 'light') {
-						document.documentElement.classList.remove('dark');
+			});
+
+			let lastConvertedData = null;
+			let lastConvertedFilename = '';
+
+			function handleConvertResponse(event) {
+				const target = event.target;
+				if (target.status === 200) {
+					try {
+						const json = JSON.parse(target.response);
+						if (json.success && json.data) {
+							lastConvertedData = json.data;
+							lastConvertedFilename = json.filename;
+							const resultDiv = document.getElementById('converter-result');
+							resultDiv.innerHTML = `
+								<div class="bg-accent/10 border border-accent/30 rounded-lg p-6 text-center">
+									<div class="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-3">
+										<svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+										</svg>
+									</div>
+									<p class="text-accent font-semibold text-lg mb-1">Conversion Successful!</p>
+									<p class="text-gray-400 text-sm mb-4">${json.filename}</p>
+									<button onclick="triggerDownload()" class="bg-accent hover:bg-accent-hover text-white font-semibold py-2 px-6 rounded-lg transition-colors inline-flex items-center cursor-pointer">
+										<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+										</svg>
+										Download CIE File
+									</button>
+								</div>
+							`;
+						} else if (!json.success) {
+							const resultDiv = document.getElementById('converter-result');
+							resultDiv.innerHTML = `
+								<div class="bg-red-500/10 border border-red-500/30 rounded-lg p-6 text-center">
+									<div class="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+										<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+										</svg>
+									</div>
+									<p class="text-red-400 font-semibold text-lg mb-1">Conversion Failed</p>
+									<p class="text-gray-400 text-sm">${json.error}</p>
+								</div>
+							`;
+						}
+					} catch (e) {
+						console.error('Failed to parse response:', e);
 					}
-				});
-			</script>
+				}
+				document.getElementById('convert-btn').disabled = false;
+			}
+
+			function triggerDownload() {
+				if (lastConvertedData && lastConvertedFilename) {
+					const binaryString = atob(lastConvertedData);
+					const bytes = new Uint8Array(binaryString.length);
+					for (let i = 0; i < binaryString.length; i++) {
+						bytes[i] = binaryString.charCodeAt(i);
+					}
+					const blob = new Blob([bytes], { type: 'application/octet-stream' });
+					const url = window.URL.createObjectURL(blob);
+					const a = document.createElement('a');
+					a.href = url;
+					a.download = lastConvertedFilename;
+					document.body.appendChild(a);
+					a.click();
+					window.URL.revokeObjectURL(url);
+					document.body.removeChild(a);
+				}
+			}
+		</script>
 		</head>
 		<body class="bg-dark-900 text-gray-100 min-h-screen dark:bg-gray-100 dark:text-gray-900">
 			<nav class="bg-dark-800 border-b border-dark-600 dark:bg-white dark:border-gray-200">

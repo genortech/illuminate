@@ -36,6 +36,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.GET("/upload", web.UploadPageHandler)
 	e.GET("/", web.LandingPageHandler)
+	e.POST("/api/v1/convert", lumHandler.ConvertIEStoCIE)
 	e.GET("/admin", web.ListPageHandler)
 	e.GET("/luminaires/:id", web.DetailPageHandler)
 
