@@ -38,6 +38,8 @@ func main() {
 
 	server := server.NewServer()
 
+	logger.Default.Infof("Starting server on http://localhost%s", server.Addr)
+
 	// Create a done channel to signal when the shutdown is complete
 	done := make(chan bool, 1)
 
