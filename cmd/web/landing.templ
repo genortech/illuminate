@@ -32,11 +32,7 @@ templ Landing() {
 				<div class="max-w-2xl mx-auto">
 					<div class="bg-dark-800 border border-dark-600 rounded-2xl p-8 shadow-2xl">
 						<form 
-							hx-post="/api/v1/convert" 
-							hx-target="#converter-result"
-							hx-swap="innerHTML"
-							hx-indicator="#loading-indicator"
-							hx-on::after-request="if(event.detail.successful) { handleConvertResponse(event.detail); }"
+							onsubmit="submitConvertForm(event)"
 							enctype="multipart/form-data"
 							class="space-y-6"
 							id="convert-form"

@@ -16,6 +16,106 @@ templ Base() {
 			document.addEventListener('htmx:afterRequest', function(evt) {
 				document.getElementById('convert-btn').disabled = false;
 			});
+
+			let lastConvertedData = null;
+			let lastConvertedFilename = '';
+
+			async function submitConvertForm(event) {
+				event.preventDefault();
+				const form = document.getElementById('convert-form');
+				const fileInput = document.getElementById('file-input');
+				const resultDiv = document.getElementById('converter-result');
+				const btn = document.getElementById('convert-btn');
+				const loadingIndicator = document.getElementById('loading-indicator');
+				
+				if (!fileInput.files.length) {
+					return;
+				}
+
+				btn.disabled = true;
+				loadingIndicator.classList.remove('hidden');
+				resultDiv.innerHTML = '';
+
+				const formData = new FormData();
+				formData.append('file', fileInput.files[0]);
+
+				try {
+					const response = await fetch('/api/v1/convert', {
+						method: 'POST',
+						body: formData
+					});
+
+					const json = await response.json();
+
+					if (json.success && json.data) {
+						lastConvertedData = json.data;
+						lastConvertedFilename = json.filename;
+						resultDiv.innerHTML = `
+							<div class="bg-accent/10 border border-accent/30 rounded-lg p-6 text-center">
+								<div class="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-3">
+									<svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+									</svg>
+								</div>
+								<p class="text-accent font-semibold text-lg mb-1">Conversion Successful!</p>
+								<p class="text-gray-400 text-sm mb-4">${json.filename}</p>
+								<button onclick="triggerDownload()" class="bg-accent hover:bg-accent-hover text-white font-semibold py-2 px-6 rounded-lg transition-colors inline-flex items-center cursor-pointer">
+									<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+									</svg>
+									Download CIE File
+								</button>
+							</div>
+						`;
+					} else {
+						resultDiv.innerHTML = `
+							<div class="bg-red-500/10 border border-red-500/30 rounded-lg p-6 text-center">
+								<div class="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+									<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+									</svg>
+								</div>
+								<p class="text-red-400 font-semibold text-lg mb-1">Conversion Failed</p>
+								<p class="text-gray-400 text-sm">${json.error}</p>
+							</div>
+						`;
+					}
+				} catch (err) {
+					resultDiv.innerHTML = `
+						<div class="bg-red-500/10 border border-red-500/30 rounded-lg p-6 text-center">
+							<div class="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+								<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+								</svg>
+							</div>
+							<p class="text-red-400 font-semibold text-lg mb-1">Conversion Failed</p>
+							<p class="text-gray-400 text-sm">An error occurred. Please try again.</p>
+						</div>
+					`;
+				} finally {
+					btn.disabled = false;
+					loadingIndicator.classList.add('hidden');
+				}
+			}
+
+			function triggerDownload() {
+				if (lastConvertedData && lastConvertedFilename) {
+					const binaryString = atob(lastConvertedData);
+					const bytes = new Uint8Array(binaryString.length);
+					for (let i = 0; i < binaryString.length; i++) {
+						bytes[i] = binaryString.charCodeAt(i);
+					}
+					const blob = new Blob([bytes], { type: 'application/octet-stream' });
+					const url = window.URL.createObjectURL(blob);
+					const a = document.createElement('a');
+					a.href = url;
+					a.download = lastConvertedFilename;
+					document.body.appendChild(a);
+					a.click();
+					window.URL.revokeObjectURL(url);
+					document.body.removeChild(a);
+				}
+			}
 		</script>
 		<script>
 			function toggleDarkMode() {
