@@ -511,6 +511,12 @@ func (h *LuminaireHandler) Export(c echo.Context) error {
 	}
 	parsedLum.CandelaMatrix = candelaRows
 
+	// Parse vertical angles
+	parsedLum.VerticalAngles = parseAngleString(vertAngles)
+
+	// Parse horizontal angles
+	parsedLum.HorizontalAngles = parseAngleString(horzAngles)
+
 	filename := fmt.Sprintf("%s_%s.%s", lum.Manufacturer, lum.Model, format)
 	if filename == "_."+format || filename == " ."+format {
 		filename = fmt.Sprintf("luminaire_%d.%s", id, format)
@@ -531,6 +537,22 @@ func (h *LuminaireHandler) Export(c echo.Context) error {
 	}
 
 	return c.Blob(http.StatusOK, "application/octet-stream", data)
+}
+
+func parseAngleString(angleStr string) []float64 {
+	if angleStr == "" {
+		return nil
+	}
+	angleStr = strings.TrimPrefix(angleStr, "[")
+	angleStr = strings.TrimSuffix(angleStr, "]")
+	fields := strings.Fields(angleStr)
+	result := make([]float64, 0, len(fields))
+	for _, f := range fields {
+		if v, err := strconv.ParseFloat(f, 64); err == nil {
+			result = append(result, v)
+		}
+	}
+	return result
 }
 
 func (h *LuminaireHandler) ConvertIEStoCIE(c echo.Context) error {
